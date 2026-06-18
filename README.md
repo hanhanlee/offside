@@ -9,10 +9,10 @@
 
 ## 怎麼開始玩
 
-直接用瀏覽器打開 **`offside-for-kids.html`** 就好(滑鼠雙擊檔案即可,不用安裝任何東西)。
-支援電腦滑鼠,也支援平板/手機的觸控操作。建議用 **Chrome / Edge**。
+**線上直接玩**(GitHub Pages):👉 https://hanhanlee.github.io/offside/
 
-> 線上版:把這個 repo 開啟 GitHub Pages 後,即可用網址直接玩。
+或下載後用瀏覽器打開 **`index.html`**(滑鼠雙擊即可,不用安裝任何東西)。
+支援電腦滑鼠,也支援平板/手機的觸控操作。建議用 **Chrome / Edge**。
 
 ---
 
