@@ -147,7 +147,7 @@
   <h1>⚽ 越位 <span class="en">Offside</span></h1>
 
   <div class="tabs">
-    <button class="tab active" id="tabDemo">🎬 看動畫</button>
+    <button class="tab active" id="tabDemo">👀 看示範</button>
     <button class="tab" id="tabGame">🎮 玩遊戲</button>
   </div>
 
@@ -196,6 +196,8 @@
     <div class="btns">
       <button class="btn green big" id="playBtn">▶ Pass!</button>
       <button class="btn" id="nextBtn">下一個 ▶▶</button>
+      <button class="btn grey hide" id="replayBtn">🔄 再看一次</button>
+      <button class="btn green hide" id="tryBtn">🎮 換我玩玩看！</button>
     </div>
     <div class="hint">傳球的那一刻 → 紅線後面 = <b style="color:#2fd06a">O</b>　偷跑到線前面 = <b style="color:#ff4b4b">X</b></div>
   </div>
@@ -286,13 +288,20 @@
     place(dPasser,...s.passer); place(dRecv,...s.recv); place(dDef1,...s.def1);
     place(dDef2,s.lastDef,46); place(dGK,...s.gk); place(ball,...s.passer);
     lineEl.style.left=s.lastDef+'%'; lineEl.className='offside-line';
-    $('demoCaption').innerHTML='情境 '+(i+1)+'：按 <span class="en">Pass!</span> 看結果'; }
+    $('demoCaption').innerHTML='範例 '+(i+1)+' / '+scenes.length+'：按 <span class="en">Pass!</span> 看結果';
+    const last = i===scenes.length-1;            // 最後一個範例沒有「下一個」
+    $('nextBtn').classList.toggle('hide', last);
+    $('replayBtn').classList.add('hide');        // 等「看完最後一個範例的結果」才跳出來
+    $('tryBtn').classList.add('hide'); }
   function playScene(){ if(demoBusy)return; demoBusy=true; initAudio(); const s=scenes[sIdx]; clearVerdict(verdict);
     showLine(s.lastDef, s.recv[0]<=s.lastDef+1.5); $('demoCaption').innerHTML=s.caption; kick();
     setTimeout(()=>place(ball,...s.recv),350);
-    setTimeout(()=>{ showVerdict(verdict,s.ok?'ok':'no',s.ok?'GOAL!':'Offside!'); s.ok?cheer():whistle(); demoBusy=false; },1130); }
+    setTimeout(()=>{ showVerdict(verdict,s.ok?'ok':'no',s.ok?'OK!':'Offside!'); s.ok?cheer():whistle(); demoBusy=false;
+      if(sIdx===scenes.length-1){ $('replayBtn').classList.remove('hide'); $('tryBtn').classList.remove('hide'); } },1130); }
   $('playBtn').onclick=playScene;
-  $('nextBtn').onclick=()=>{ sIdx=(sIdx+1)%scenes.length; hideLine(); loadScene(sIdx); };
+  $('nextBtn').onclick=()=>{ sIdx=Math.min(sIdx+1,scenes.length-1); hideLine(); loadScene(sIdx); };
+  $('replayBtn').onclick=()=>{ sIdx=0; hideLine(); loadScene(0); };
+  $('tryBtn').onclick=()=>toGame();
 
   /* ================= GAME: PASS ================= */
   const gPasser=mk('blue'),gRecv=mk('blue receiver'),gDef1=mk('red'),gDef2=mk('red'),gGK=mk('gk','GK');
@@ -556,7 +565,8 @@
     '往':'ㄨㄤˇ','想':'ㄒㄧㄤˇ','向':'ㄒㄧㄤˋ','拉':'ㄌㄚ','放':'ㄈㄤˋ','開':'ㄎㄞ','箭':'ㄐㄧㄢˋ','頭':'ㄊㄡˊ','指':'ㄓˇ','哪':'ㄋㄚˇ','飛':'ㄈㄟ',
     '長':'ㄔㄤˊ','力':'ㄌㄧˋ','大':'ㄉㄚˋ','太':'ㄊㄞˋ','短':'ㄉㄨㄢˇ','會':'ㄏㄨㄟˋ','不':'ㄅㄨˋ','夠':'ㄍㄡˋ','遠':'ㄩㄢˇ',
     '情':'ㄑㄧㄥˊ','境':'ㄐㄧㄥˋ','結':'ㄐㄧㄝˊ','果':'ㄍㄨㄛˇ','喔':'ㄛ','時':'ㄕˊ','這':'ㄓㄜˋ','次':'ㄘˋ','剛':'ㄍㄤ','站':'ㄓㄢˋ','上':'ㄕㄤˋ','也':'ㄧㄝˇ','算':'ㄙㄨㄢˋ',
-    '被':'ㄅㄟˋ','將':'ㄐㄧㄤ','撲':'ㄆㄨ','瞄':'ㄇㄧㄠˊ','他':'ㄊㄚ','地':'ㄉㄧˋ','過':'ㄍㄨㄛˋ','輕':'ㄑㄧㄥ','沒':'ㄇㄟˊ','打':'ㄉㄚˇ','柱':'ㄓㄨˋ','差':'ㄔㄚˋ','點':'ㄉㄧㄢˇ','歪':'ㄨㄞ','偏':'ㄆㄧㄢ','出':'ㄔㄨ','去':'ㄑㄩˋ'
+    '被':'ㄅㄟˋ','將':'ㄐㄧㄤ','撲':'ㄆㄨ','瞄':'ㄇㄧㄠˊ','他':'ㄊㄚ','地':'ㄉㄧˋ','過':'ㄍㄨㄛˋ','輕':'ㄑㄧㄥ','沒':'ㄇㄟˊ','打':'ㄉㄚˇ','柱':'ㄓㄨˋ','差':'ㄔㄚˋ','點':'ㄉㄧㄢˇ','歪':'ㄨㄞ','偏':'ㄆㄧㄢ','出':'ㄔㄨ','去':'ㄑㄩˋ',
+    '示':'ㄕˋ','範':'ㄈㄢˋ','例':'ㄌㄧˋ','防':'ㄈㄤˊ','擋':'ㄉㄤˇ','繞':'ㄖㄠˋ','用':'ㄩㄥˋ','或':'ㄏㄨㄛˋ','有':'ㄧㄡˇ','關':'ㄍㄨㄢ','顆':'ㄎㄜ','星':'ㄒㄧㄥ'
   };
   const isHan=s=>/[一-鿿]/.test(s);
   const TONES={'ˊ':1,'ˇ':1,'ˋ':1};
@@ -584,17 +594,19 @@
           const wrap=document.createElement('span'); wrap.className='zy';
           const c=document.createElement('span'); c.className='zyc'; c.textContent=ch;
           wrap.appendChild(c); wrap.appendChild(buildZ(ZY[ch])); frag.appendChild(wrap);
+        } else if(isHan(ch)){           // 沒對照的漢字:包成略過標記(不重複處理、不會無限迴圈)
+          const c=document.createElement('span'); c.className='zyc'; c.textContent=ch; frag.appendChild(c);
         } else frag.appendChild(document.createTextNode(ch));
       }
       n.parentNode.replaceChild(frag,n);
     });
   }
+  // 不 disconnect:annotate 具冪等性(已標注的會跳過),自身造成的變動會在下一輪 no-op 收斂,
+  // 避免「處理期間的字幕變更被漏標」的競態 → 示範/遊戲動態字幕一定有注音。
   const obs=new MutationObserver(ms=>{
-    obs.disconnect();
     const seen=new Set();
     ms.forEach(m=>{ const el=m.type==='characterData'?m.target.parentNode:m.target;
       if(el&&el.nodeType===1&&!seen.has(el)){ seen.add(el); annotate(el); } });
-    obs.observe(document.body,{childList:true,subtree:true,characterData:true});
   });
   annotate(document.body);
   obs.observe(document.body,{childList:true,subtree:true,characterData:true});
