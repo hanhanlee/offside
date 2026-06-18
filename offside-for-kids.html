@@ -13,7 +13,7 @@
   html,body{margin:0; padding:0;}
   body{font-family:"Segoe UI",system-ui,"Microsoft JhengHei",sans-serif; color:var(--ink); min-height:100vh;
     background:linear-gradient(160deg,#bfe9ff,#e8fff0); display:flex; flex-direction:column; align-items:center;
-    padding:14px; user-select:none; zoom:1.2;}
+    padding:8px; user-select:none;}
   h1{font-size:clamp(24px,5.5vw,38px); margin:2px 0 8px; letter-spacing:1px; text-shadow:0 2px 0 #fff;}
   h1 .en{color:var(--blue);}
   .tabs{display:flex; gap:10px; margin-bottom:10px;}
@@ -21,7 +21,9 @@
     border-radius:999px; background:#fff; color:var(--ink); box-shadow:0 3px 0 #cdd8d0; transition:transform .1s;}
   .tab.active{background:var(--blue); color:#fff; box-shadow:0 3px 0 #1b5fc0;}
   .tab:active{transform:translateY(2px);}
-  .wrap{width:min(720px,96vw);}
+  /* 球場大小 = 取(寬度上限 / 螢幕寬 / 「扣掉標題與控制列後剩下的高度」)三者最小值
+     → 高螢幕大、矮螢幕小,PASS 控制列永遠看得到 */
+  .wrap{width:min(720px, 96vw, max(300px, calc((100vh - 440px) * 1.5)));}
 
   /* ===== top-down pitch (pass phase) ===== */
   .pitch{position:relative; width:100%; aspect-ratio:3/2; border-radius:18px; overflow:hidden;
@@ -68,6 +70,11 @@
     border-radius:32% 32% 20% 20%; background:var(--blue); border:2px solid #1b5fc0;}
   .keeper2 .kg{position:absolute; top:30%; width:26%; aspect-ratio:1; border-radius:50%; background:#fff; border:2px solid #cfd8df; z-index:2;}
   .keeper2 .kg.l{left:-9%;} .keeper2 .kg.r{right:-9%;}
+  .obst{position:absolute; transform:translate(-50%,-100%); z-index:5; pointer-events:none;}
+  .obst .oh{position:absolute; left:50%; top:0; transform:translateX(-50%); width:40%; aspect-ratio:1;
+    border-radius:50%; background:#ffd9b0; border:2px solid #e0a96a;}
+  .obst .ob{position:absolute; left:50%; top:30%; transform:translateX(-50%); width:82%; height:70%;
+    border-radius:32% 32% 18% 18%; background:var(--red); border:2px solid #c23a23;}
   .ball2{position:absolute; transform:translate(-50%,-50%); z-index:6; width:9%; aspect-ratio:1; line-height:1;
     display:flex; align-items:center; justify-content:center; cursor:grab; touch-action:none;}
   .ball2.dragging{cursor:grabbing;}
@@ -90,8 +97,8 @@
     padding:4px 18px; border-radius:14px; margin-top:6px;}
 
   /* panels */
-  .panel{width:min(720px,96vw); margin-top:12px; background:var(--card); border-radius:16px; padding:12px;
-    box-shadow:0 6px 16px rgba(0,0,0,.10); display:flex; flex-direction:column; gap:10px; align-items:center;}
+  .panel{width:min(720px,96vw); margin-top:8px; background:var(--card); border-radius:16px; padding:9px;
+    box-shadow:0 6px 16px rgba(0,0,0,.10); display:flex; flex-direction:column; gap:4px; align-items:center;}
   .caption{font-size:clamp(17px,4.2vw,24px); font-weight:800; text-align:center; min-height:1.4em;}
   .caption .en{color:var(--blue);}
   .btns{display:flex; gap:12px; flex-wrap:wrap; justify-content:center;}
@@ -100,12 +107,13 @@
   .btn.big{font-size:clamp(20px,5.5vw,28px); padding:15px 36px;}
   .btn.green{background:#2fd06a; box-shadow:0 4px 0 #1f9d4d;} .btn.grey{background:#8aa0b3; box-shadow:0 4px 0 #647889;}
   .btn:active{transform:translateY(3px); box-shadow:none;}
-  .stars{font-size:clamp(24px,6.5vw,36px); letter-spacing:4px; min-height:1.2em;}
+  .stars{font-size:clamp(18px,5vw,26px); letter-spacing:3px; min-height:1.1em;}
   .hint{font-size:clamp(13px,3.4vw,16px); color:#5a6b60; text-align:center;}
   .legend{display:flex; gap:14px; flex-wrap:wrap; justify-content:center; font-size:clamp(13px,3.2vw,16px); font-weight:700;}
   .legend span{display:inline-flex; align-items:center; gap:6px;}
   .dot{width:16px; height:16px; border-radius:50%; border:2px solid #fff; box-shadow:0 1px 2px rgba(0,0,0,.3);}
   .dot.blue{background:var(--blue);} .dot.red{background:var(--red);} .dot.gk{background:var(--gk);}
+  .setrow{display:flex; gap:18px; flex-wrap:wrap; justify-content:center; align-items:center;}
   .difficulty{display:flex; align-items:center; gap:8px; font-weight:800; font-size:clamp(14px,3.6vw,18px);}
   .lvl{border:none; cursor:pointer; width:40px; height:40px; border-radius:50%; font-weight:900; font-size:18px;
     background:#e7eef3; color:#4a5a66; box-shadow:0 3px 0 #c5d2da;}
@@ -114,6 +122,17 @@
     font-size:clamp(13px,3.4vw,16px); background:#e7eef3; color:#4a5a66; box-shadow:0 3px 0 #c5d2da;}
   .stype.active{background:var(--blue); color:#fff; box-shadow:0 3px 0 #1b5fc0;} .stype:active{transform:translateY(2px);}
   .hide{display:none !important;}
+  /* 過關慶祝動畫 */
+  .party{position:fixed; inset:0; z-index:50; pointer-events:none; overflow:hidden;}
+  .party-center{position:absolute; left:50%; top:34%; transform:translate(-50%,-50%) scale(0);
+    text-align:center; animation:pop .5s cubic-bezier(.2,1.7,.5,1) .1s forwards;}
+  .party-center .trophy{font-size:96px; line-height:1; filter:drop-shadow(0 6px 10px rgba(0,0,0,.25));}
+  .party-center .ptext{font-size:52px; font-weight:900; color:#ffb300; -webkit-text-stroke:3px #fff;
+    paint-order:stroke fill; text-shadow:0 4px 0 rgba(0,0,0,.12);}
+  .confetti{position:absolute; top:-10%; will-change:transform; animation:fall linear 1 forwards;}
+  @keyframes pop{to{transform:translate(-50%,-50%) scale(1);}}
+  @keyframes fall{0%{transform:translateY(0) rotate(0deg); opacity:1;}
+    100%{transform:translateY(115vh) rotate(720deg); opacity:.9;}}
   /* 注音 — 直排在字的右邊,聲調分開定位(課本式) */
   .zy{display:inline-flex; align-items:center; vertical-align:baseline; line-height:1; margin:0 .18em;}
   .z{position:relative; display:inline-block; margin-left:2px; padding-right:.42em;}
@@ -184,15 +203,17 @@
   <!-- GAME panel -->
   <div class="panel hide" id="gamePanel">
     <div class="stars" id="stars"></div>
-    <div class="difficulty">守門員難度
-      <button class="lvl active" data-lv="1">1</button>
-      <button class="lvl" data-lv="2">2</button>
-      <button class="lvl" data-lv="3">3</button>
-    </div>
-    <div class="difficulty">球路
-      <button class="stype" data-loft="drive">⚡直球</button>
-      <button class="stype active" data-loft="normal">⚽普通</button>
-      <button class="stype" data-loft="lob">🌈吊高</button>
+    <div class="setrow">
+      <div class="difficulty">守門員難度
+        <button class="lvl active" data-lv="1">1</button>
+        <button class="lvl" data-lv="2">2</button>
+        <button class="lvl" data-lv="3">3</button>
+      </div>
+      <div class="difficulty">球路
+        <button class="stype" data-loft="drive">⚡直球</button>
+        <button class="stype active" data-loft="normal">⚽普通</button>
+        <button class="stype" data-loft="lob">🌈吊高</button>
+      </div>
     </div>
     <div class="caption" id="gameCaption"></div>
     <div class="btns" id="passControls">
@@ -222,6 +243,23 @@
   const saveSfx=()=>{tone(180,0.18,'square',0,0.25); tone(120,0.22,'square',0.05,0.2);};
   const postSfx=()=>{tone(900,0.07,'square',0,0.28); tone(680,0.12,'square',0.06,0.2);};
   const kick   =()=>tone(160,0.12,'triangle',0,0.3);
+  const fanfare=()=>[523,659,784,1046,1318,1568].forEach((f,i)=>tone(f,0.45,'triangle',i*0.13,0.26));
+  function celebrate(){
+    fanfare();
+    const party=document.createElement('div'); party.className='party';
+    const c=document.createElement('div'); c.className='party-center';
+    c.innerHTML='<div class="trophy">🏆</div><div class="ptext">過關！</div>';
+    party.appendChild(c);
+    const em=['⚽','⭐','🎉','🎊','🏅','🌟'];
+    for(let i=0;i<30;i++){
+      const p=document.createElement('div'); p.className='confetti'; p.textContent=em[i%em.length];
+      p.style.left=(Math.random()*100)+'%'; p.style.fontSize=(20+Math.random()*26)+'px';
+      p.style.animationDelay=(Math.random()*0.7)+'s'; p.style.animationDuration=(1.8+Math.random()*1.5)+'s';
+      party.appendChild(p);
+    }
+    document.documentElement.appendChild(party);   // 掛在 <html> 避免被 body 的 zoom 影響
+    setTimeout(()=>party.remove(), 3300);
+  }
   function initAudio(){ try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended')actx.resume(); }catch(e){} }
 
   function showVerdict(el,kind,word){ el.className='verdict show '+(kind==='ok'?'ok':'no');
@@ -266,7 +304,7 @@
     showLine(lastDefX, recvX<=lastDefX+1.5); }
   const drawStars=()=>$('stars').textContent='⭐'.repeat(stars)+'☆'.repeat(Math.max(0,5-stars));
 
-  function newPass(){ phase='pass'; busy=false; cancelAnimationFrame(rafId);
+  function newPass(){ phase='pass'; busy=false; cancelAnimationFrame(rafId); clearObstacles();
     lastDefX=48+Math.random()*28; recvX=35+Math.random()*45; recvY=28+Math.random()*40; clearVerdict(verdict);
     pitch.classList.remove('hide'); goalStage.classList.add('hide'); $('passControls').classList.remove('hide'); renderGame();
     $('gameCaption').innerHTML='拖動 <span class="en">🔵</span> 隊友，再按 <span class="en">PASS!</span>';
@@ -277,6 +315,7 @@
     setTimeout(()=>place(ball,recvX,recvY),250);
     setTimeout(()=>{
       if(onside){ showVerdict(verdict,'ok','Nice!'); cheer();
+        buildShotFromPass();   // 接球位置→射門起點(相對球門);前方防守球員→障礙物
         $('gameCaption').innerHTML='<b style="color:#2fd06a">好球！</b> 換你射門 ⚽'; setTimeout(enterShoot,1000);
       }else{ showVerdict(verdict,'no','Offside!'); whistle();
         $('gameCaption').innerHTML='<b style="color:#ff4b4b">偷跑了！</b> 退到紅線後面再試試';
@@ -323,6 +362,7 @@
   const keeper2=$('keeper2'), ball2=$('ball2'), bshadow=$('bshadow'),
         aim=$('aim'), aimLine=$('aimLine'), powerwrap=$('powerwrap'), powerbar=$('powerbar');
   let kx0=0, kdir=1, lastTs=0, rafId=null, shotState='idle', aimX=0, power=0, dragging=false;
+  let shotStartU=0, obstacles=[];   // ball-start offset + defender obstacles, derived from the pass
 
   function renderKeeper(cx,cy,tilt){ keeper2.style.left=cx+'%'; keeper2.style.top=cy+'%';
     keeper2.style.transform='translate(-50%,-50%) rotate('+tilt+'deg)'; }
@@ -336,13 +376,36 @@
     bshadow.style.opacity=clamp(0.30-h*0.13,0.05,0.30);
   }
 
+  // 由傳球結果決定:射門起點的左右位置 + 前方擋路的防守球員(障礙物)
+  function buildShotFromPass(){
+    shotStartU=clamp((recvY-50)/45,-0.55,0.55);     // 接球偏哪邊 → 射門就從那一側出發
+    clearObstacles(); obstacles=[];
+    [[lastDefX-12,64],[lastDefX,38]].forEach(([dx,dy])=>{   // 在接球者「前方」(更靠球門)的防守球員
+      if(dx>recvX+7){
+        obstacles.push({ z:clamp((dx-recvX)/(96-recvX),0.22,0.8), u:clamp((dy-50)/45,-1,1), halfU:0.2, hBlock:0.5, el:null });
+      }
+    });
+  }
+  function clearObstacles(){ obstacles.forEach(o=>{ if(o.el){o.el.remove(); o.el=null;} }); }
+  function renderObstacles(){
+    clearObstacles();
+    obstacles.forEach(o=>{ const sc=scaleZ(o.z); const el=document.createElement('div'); el.className='obst';
+      el.style.left=scrX(o.z,o.u)+'%'; el.style.top=groundY(o.z)+'%';
+      el.style.width=(9*sc)+'%'; el.style.height=(20*sc)+'%';
+      el.innerHTML='<span class="oh"></span><span class="ob"></span>';
+      goalStage.appendChild(el); o.el=el; });
+  }
+
   function enterShoot(){ phase='shoot'; busy=false; clearVerdict(verdict); clearVerdict(verdict2);
     pitch.classList.add('hide'); goalStage.classList.remove('hide'); $('passControls').classList.add('hide');
     kx0=0; kdir=1; aimX=0; power=0; shotState='aim';
-    renderKeeper(scrX(1,0),KH_Y,0); renderBall(0,0,0);
+    renderObstacles();
+    renderKeeper(scrX(1,0),KH_Y,0); renderBall(0,shotStartU,0);
     aim.classList.remove('show'); powerwrap.classList.remove('show');
     $('gameCaption').innerHTML='往<b>想射的方向</b>拉 <span class="en">⚽</span>，放開射門！';
-    $('gameHint').innerHTML='箭頭指哪、球就飛哪；拉越長力越大（太短會<b>不夠遠</b>）';
+    $('gameHint').innerHTML = obstacles.length
+      ? '前面有<b>防守球員</b>擋路！繞過他、或用 🌈吊高越過 🚧'
+      : '箭頭指哪、球就飛哪；拉越長力越大（太短會<b>不夠遠</b>）';
     cancelAnimationFrame(rafId); lastTs=performance.now(); rafId=requestAnimationFrame(loop); }
 
   function loop(ts){ const dt=Math.min(0.05,(ts-lastTs)/1000||0); lastTs=ts;
@@ -359,12 +422,14 @@
   const GAIM_Y=27, ALEN_MIN=16, ALEN_MAX=40;
   function updateAim(p){
     const r=goalStage.getBoundingClientRect(), W=r.width, H=r.height;
-    power=clamp(Math.hypot((p.x-BSX)/100*W,(p.y-BSY)/100*H)/(0.50*H),0,1);
-    aimX=clamp((p.x-BSX)/20,-1.2,1.2);                 // 20% cursor move = full goal width
+    const ox=scrX(0,shotStartU);                       // ball's start screen-x (may be offset)
+    power=clamp(Math.hypot((p.x-ox)/100*W,(p.y-BSY)/100*H)/(0.50*H),0,1);
+    aimX=clamp((p.x-50)/20,-1.2,1.2);                  // cursor x -> goal x (absolute)
     const tX=scrX(1,aimX);                             // where on the goal the ball will go
     const alen=ALEN_MIN+(ALEN_MAX-ALEN_MIN)*power;     // bounded length, grows with power
-    let dx=tX-BSX, dy=GAIM_Y-BSY, dl=Math.hypot(dx,dy)||1;
-    aimLine.setAttribute('x2',BSX+dx/dl*alen); aimLine.setAttribute('y2',BSY+dy/dl*alen);
+    let dx=tX-ox, dy=GAIM_Y-BSY, dl=Math.hypot(dx,dy)||1;
+    aimLine.setAttribute('x1',ox); aimLine.setAttribute('y1',BSY);
+    aimLine.setAttribute('x2',ox+dx/dl*alen); aimLine.setAttribute('y2',BSY+dy/dl*alen);
     aim.classList.add('show');
     powerbar.style.height=(power*100)+'%'; powerwrap.classList.add('show');
   }
@@ -392,6 +457,7 @@
     const reachXe=p.reachX*(1-0.08*pw)*LF.kReach;
     const endX=homeX+clampMag(bX-homeX, reachXe);
     const endY=homeY+clamp(bY-homeY, -p.jump, GROUND);
+    const ballU=z=>shotStartU+(ax-shotStartU)*z;       // lateral path: offset start -> goal target
 
     // verdict from the drawn boxes -> what you see is what you get
     const ovl = Math.abs(bX-endX)<=BHALF_W+KC_W/2 && Math.abs(bY-endY)<=BHALF_H+KC_H/2;
@@ -404,13 +470,21 @@
     else if(ballL<POST_L || ballR>POST_R) result='post';
     else result=ovl?'saved':'goal';
 
-    const kEndX = result==='short'?homeX:endX;   // don't dive at a ball that never arrives
-    const kEndY = result==='short'?homeY:endY;
-    const pEnd = !onGoal?Rland : (result==='over'?1.28 : (result==='wide'?1.06:1.0));
+    // 防守球員擋路:球在該深度的左右位置與高度若撞到球員 → 被擋(吊高可越過、繞邊可避開)
+    let blockO=null;
+    for(const o of obstacles){ if(Rland>o.z+0.03){
+      const ou=ballU(o.z), oh=Math.max(0,hAt(o.z));
+      if(Math.abs(ou-o.u)<=o.halfU && oh<=o.hBlock && (!blockO||o.z<blockO.z)) blockO=o; } }
+    if(blockO) result='block';
+
+    const planted = (result==='short'||result==='block');
+    const kEndX = planted?homeX:endX;   // keeper doesn't dive if ball won't reach him
+    const kEndY = planted?homeY:endY;
+    const pEnd = result==='block'?blockO.z : !onGoal?Rland : (result==='over'?1.28 : (result==='wide'?1.06:1.0));
     const dur=LF.dur, t0=performance.now();
     cancelAnimationFrame(rafId);
     (function fly(ts){ let f=(ts-t0)/dur; if(f>1)f=1;
-      const z=pEnd*f, h=Math.max(0,hAt(z)), x=ax*z;
+      const z=pEnd*f, h=Math.max(0,hAt(z)), x=ballU(z);
       renderBall(z,x,h);
       const kf=clamp((z-p.react)/(1-p.react),0,1);
       const cx=homeX+(kEndX-homeX)*kf, cy=homeY+(kEndY-homeY)*kf;
@@ -420,8 +494,12 @@
   }
 
   function finishShot(result){
-    if(result==='goal'){ showVerdict(verdict2,'ok','GOAL!'); cheer(); stars=Math.min(5,stars+1); drawStars();
-      $('gameCaption').innerHTML = stars>=5?'🏆 五球達成！你超強！':'<b style="color:#2fd06a">進球啦！</b> ⭐';
+    let won=false;
+    if(result==='goal'){ showVerdict(verdict2,'ok','GOAL!'); stars=Math.min(5,stars+1); drawStars();
+      if(stars>=5){ won=true; $('gameCaption').innerHTML='🏆 <b style="color:#ffb300">過關！五顆星！</b>'; celebrate(); }
+      else { cheer(); $('gameCaption').innerHTML='<b style="color:#2fd06a">進球啦！</b> ⭐'; }
+    }else if(result==='block'){ showVerdict(verdict2,'no','BLOCK!'); saveSfx();
+      $('gameCaption').innerHTML='被<b>防守球員</b>擋下了！繞過他或 🌈吊高越過';
     }else if(result==='saved'){ showVerdict(verdict2,'no','SAVED!'); saveSfx();
       $('gameCaption').innerHTML='🧤 被門將撲到了！瞄他撲不到的地方';
     }else if(result==='over'){ showVerdict(verdict2,'no','OVER!'); whistle();
@@ -432,7 +510,7 @@
       $('gameCaption').innerHTML='🥅 打到門柱了！差一點點';
     }else{ showVerdict(verdict2,'no','WIDE!'); whistle();
       $('gameCaption').innerHTML='歪了！球射偏出去了'; }
-    setTimeout(()=>{ clearVerdict(verdict2); if(stars>=5)stars=0; drawStars(); newPass(); }, 1700);
+    setTimeout(()=>{ clearVerdict(verdict2); if(stars>=5)stars=0; drawStars(); newPass(); }, won?3300:1700);
   }
 
   $('passBtn').onclick=passGame;
