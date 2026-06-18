@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>越位 Offside ⚽</title>
+<style>
+  :root{
+    --pitch1:#46b06a; --pitch2:#3da35d;
+    --blue:#2d7ff9; --red:#ff5a3c; --gk:#ffd23f; --ink:#1f3a2e; --card:#fff;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{font-family:"Segoe UI",system-ui,"Microsoft JhengHei",sans-serif; color:var(--ink); min-height:100vh;
+    background:linear-gradient(160deg,#bfe9ff,#e8fff0); display:flex; flex-direction:column; align-items:center;
+    padding:14px; user-select:none; zoom:1.2;}
+  h1{font-size:clamp(24px,5.5vw,38px); margin:2px 0 8px; letter-spacing:1px; text-shadow:0 2px 0 #fff;}
+  h1 .en{color:var(--blue);}
+  .tabs{display:flex; gap:10px; margin-bottom:10px;}
+  .tab{border:none; cursor:pointer; font-size:clamp(15px,3.6vw,21px); font-weight:800; padding:9px 16px;
+    border-radius:999px; background:#fff; color:var(--ink); box-shadow:0 3px 0 #cdd8d0; transition:transform .1s;}
+  .tab.active{background:var(--blue); color:#fff; box-shadow:0 3px 0 #1b5fc0;}
+  .tab:active{transform:translateY(2px);}
+  .wrap{width:min(720px,96vw);}
+
+  /* ===== top-down pitch (pass phase) ===== */
+  .pitch{position:relative; width:100%; aspect-ratio:3/2; border-radius:18px; overflow:hidden;
+    background:repeating-linear-gradient(90deg,var(--pitch1) 0 11.11%,var(--pitch2) 11.11% 22.22%);
+    box-shadow:0 8px 24px rgba(0,0,0,.18); border:5px solid #fff; touch-action:none;}
+  .center-circle{position:absolute; left:50%; top:50%; width:26%; aspect-ratio:1; transform:translate(-50%,-50%);
+    border:3px solid rgba(255,255,255,.55); border-radius:50%;}
+  .goal-mini{position:absolute; right:0; top:50%; transform:translateY(-50%); width:14px; height:46%;
+    background:repeating-linear-gradient(0deg,#fff 0 8px,#e7e7e7 8px 16px); border-radius:3px 0 0 3px;}
+  .offside-line{position:absolute; top:0; bottom:0; width:0; border-left:4px dashed rgba(255,80,80,.9);
+    transform:translateX(-50%); transition:left .15s, border-color .15s, opacity .2s; opacity:0; z-index:4;}
+  .offside-line.show{opacity:1;} .offside-line.safe{border-left-color:rgba(60,200,90,.95);}
+  .offside-line .flag{position:absolute; top:-2px; left:6px; font-size:18px; background:#fff; padding:2px 8px;
+    border-radius:10px; font-weight:800; color:#e23b3b; white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,.15);}
+  .offside-line.safe .flag{color:#1f9d4d;}
+  .player{position:absolute; width:9%; aspect-ratio:1; transform:translate(-50%,-50%); border-radius:50%;
+    border:3px solid #fff; display:flex; align-items:center; justify-content:center; font-size:clamp(12px,3vw,18px);
+    font-weight:900; color:#fff; box-shadow:0 3px 6px rgba(0,0,0,.25); z-index:5; transition:left .15s, top .15s;}
+  .player.blue{background:var(--blue);} .player.red{background:var(--red);} .player.gk{background:var(--gk); color:#7a5a00;}
+  .player.receiver{cursor:grab; z-index:7; box-shadow:0 0 0 6px rgba(45,127,249,.35),0 4px 8px rgba(0,0,0,.3);}
+  .player.receiver.dragging{cursor:grabbing;}
+  .player.receiver::after{content:"\2195"; position:absolute; bottom:-22px; font-size:16px; color:#fff; text-shadow:0 1px 2px #000;}
+  .ball{position:absolute; width:6%; aspect-ratio:1; transform:translate(-50%,-50%); z-index:6;
+    font-size:clamp(16px,4.5vw,28px); text-align:center; line-height:1;
+    transition:left .7s cubic-bezier(.3,.8,.4,1), top .7s cubic-bezier(.3,.8,.4,1);
+    display:flex; align-items:center; justify-content:center;}
+
+  /* ===== perspective goal view (shoot phase) ===== */
+  .goalstage{position:relative; width:100%; aspect-ratio:3/2; border-radius:18px; overflow:hidden; touch-action:none;
+    border:5px solid #fff; box-shadow:0 8px 24px rgba(0,0,0,.18);
+    background:linear-gradient(#9fd9ff 0 30%, #6fc77f 30% 62%, #5cbf6e 62% 100%);}
+  .field{position:absolute; inset:0; width:100%; height:100%; z-index:1; pointer-events:none;}
+  .gframe{position:absolute; left:30%; width:40%; top:10%; height:34%; border:6px solid #fff; border-bottom:none;
+    border-radius:5px 5px 0 0; z-index:2;
+    background:repeating-linear-gradient(0deg,rgba(255,255,255,.4) 0 1px,transparent 1px 13%),
+               repeating-linear-gradient(90deg,rgba(255,255,255,.4) 0 1px,transparent 1px 13%);}
+  .bshadow{position:absolute; transform:translate(-50%,-50%); border-radius:50%; background:rgba(0,0,0,.28);
+    z-index:3; pointer-events:none;}
+  .keeper2{position:absolute; width:9%; height:11%; transform:translate(-50%,-50%) rotate(0deg);
+    transform-origin:center; z-index:4; pointer-events:none; transition:none;}
+  .keeper2 .kh{position:absolute; left:50%; top:-4%; transform:translateX(-50%); width:38%; aspect-ratio:1;
+    border-radius:50%; background:#ffd9b0; border:2px solid #e0a96a;}
+  .keeper2 .kbd{position:absolute; left:50%; top:26%; transform:translateX(-50%); width:72%; height:66%;
+    border-radius:32% 32% 20% 20%; background:var(--blue); border:2px solid #1b5fc0;}
+  .keeper2 .kg{position:absolute; top:30%; width:26%; aspect-ratio:1; border-radius:50%; background:#fff; border:2px solid #cfd8df; z-index:2;}
+  .keeper2 .kg.l{left:-9%;} .keeper2 .kg.r{right:-9%;}
+  .ball2{position:absolute; transform:translate(-50%,-50%); z-index:6; width:9%; aspect-ratio:1; line-height:1;
+    display:flex; align-items:center; justify-content:center; cursor:grab; touch-action:none;}
+  .ball2.dragging{cursor:grabbing;}
+  .aim{position:absolute; inset:0; width:100%; height:100%; z-index:5; pointer-events:none; opacity:0; transition:opacity .12s;}
+  .aim.show{opacity:1;}
+  .powerwrap{position:absolute; left:8px; bottom:8px; width:18px; height:42%; background:rgba(0,0,0,.18);
+    border-radius:10px; overflow:hidden; z-index:6; opacity:0; transition:opacity .15s;}
+  .powerwrap.show{opacity:1;}
+  .powerbar{position:absolute; left:0; right:0; bottom:0; height:0%; background:linear-gradient(#2fd06a,#ffd23f,#ff4b4b);}
+  .powerwrap .ptick{position:absolute; left:0; right:0; height:2px; background:rgba(255,255,255,.85); z-index:2;}
+
+  /* shared verdict */
+  .verdict{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    z-index:9; pointer-events:none; opacity:0; transform:scale(.4);
+    transition:opacity .2s, transform .25s cubic-bezier(.3,1.6,.5,1);}
+  .verdict.show{opacity:1; transform:scale(1);}
+  .verdict .mark{font-size:clamp(72px,22vw,160px); line-height:1; font-weight:900; text-shadow:0 6px 0 rgba(0,0,0,.18);}
+  .verdict.ok .mark{color:#2fd06a;} .verdict.no .mark{color:#ff4b4b;}
+  .verdict .word{font-size:clamp(20px,6.5vw,42px); font-weight:900; color:#fff; background:rgba(0,0,0,.35);
+    padding:4px 18px; border-radius:14px; margin-top:6px;}
+
+  /* panels */
+  .panel{width:min(720px,96vw); margin-top:12px; background:var(--card); border-radius:16px; padding:12px;
+    box-shadow:0 6px 16px rgba(0,0,0,.10); display:flex; flex-direction:column; gap:10px; align-items:center;}
+  .caption{font-size:clamp(17px,4.2vw,24px); font-weight:800; text-align:center; min-height:1.4em;}
+  .caption .en{color:var(--blue);}
+  .btns{display:flex; gap:12px; flex-wrap:wrap; justify-content:center;}
+  .btn{border:none; cursor:pointer; font-weight:900; font-size:clamp(17px,4.2vw,23px); padding:13px 24px;
+    border-radius:14px; color:#fff; background:var(--blue); box-shadow:0 4px 0 #1b5fc0; transition:transform .08s;}
+  .btn.big{font-size:clamp(20px,5.5vw,28px); padding:15px 36px;}
+  .btn.green{background:#2fd06a; box-shadow:0 4px 0 #1f9d4d;} .btn.grey{background:#8aa0b3; box-shadow:0 4px 0 #647889;}
+  .btn:active{transform:translateY(3px); box-shadow:none;}
+  .stars{font-size:clamp(24px,6.5vw,36px); letter-spacing:4px; min-height:1.2em;}
+  .hint{font-size:clamp(13px,3.4vw,16px); color:#5a6b60; text-align:center;}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; justify-content:center; font-size:clamp(13px,3.2vw,16px); font-weight:700;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .dot{width:16px; height:16px; border-radius:50%; border:2px solid #fff; box-shadow:0 1px 2px rgba(0,0,0,.3);}
+  .dot.blue{background:var(--blue);} .dot.red{background:var(--red);} .dot.gk{background:var(--gk);}
+  .difficulty{display:flex; align-items:center; gap:8px; font-weight:800; font-size:clamp(14px,3.6vw,18px);}
+  .lvl{border:none; cursor:pointer; width:40px; height:40px; border-radius:50%; font-weight:900; font-size:18px;
+    background:#e7eef3; color:#4a5a66; box-shadow:0 3px 0 #c5d2da;}
+  .lvl.active{background:var(--red); color:#fff; box-shadow:0 3px 0 #c23a23;} .lvl:active{transform:translateY(2px);}
+  .stype{border:none; cursor:pointer; padding:7px 12px; border-radius:999px; font-weight:800;
+    font-size:clamp(13px,3.4vw,16px); background:#e7eef3; color:#4a5a66; box-shadow:0 3px 0 #c5d2da;}
+  .stype.active{background:var(--blue); color:#fff; box-shadow:0 3px 0 #1b5fc0;} .stype:active{transform:translateY(2px);}
+  .hide{display:none !important;}
+  /* 注音 — 直排在字的右邊,聲調分開定位(課本式) */
+  .zy{display:inline-flex; align-items:center; vertical-align:baseline; line-height:1; margin:0 .18em;}
+  .z{position:relative; display:inline-block; margin-left:2px; padding-right:.42em;}
+  .zs{writing-mode:vertical-lr; text-orientation:upright; -webkit-text-orientation:upright;
+    font-size:.44em; line-height:1; font-weight:700; color:inherit; opacity:.85; user-select:none;}
+  .zt{position:absolute; font-size:.6em; font-weight:900; color:inherit; opacity:.9; line-height:1; user-select:none;}
+  .zt-r{right:-.05em; bottom:.12em;}   /* 二三四聲：貼齊韻符(最後一個符號)的右上角 */
+  .zt-t{top:-.42em; left:0;}            /* 輕聲：上方 */
+</style>
+</head>
+<body>
+  <h1>⚽ 越位 <span class="en">Offside</span></h1>
+
+  <div class="tabs">
+    <button class="tab active" id="tabDemo">🎬 看動畫</button>
+    <button class="tab" id="tabGame">🎮 玩遊戲</button>
+  </div>
+
+  <div class="wrap">
+    <!-- pass phase: top-down -->
+    <div class="pitch" id="pitch">
+      <div class="center-circle"></div>
+      <div class="goal-mini"></div>
+      <div class="offside-line" id="line"><span class="flag">offside line</span></div>
+      <div class="verdict" id="verdict"><div class="mark"></div><div class="word"></div></div>
+    </div>
+
+    <!-- shoot phase: perspective -->
+    <div class="goalstage hide" id="goalStage">
+      <svg class="field" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <line x1="6" y1="100" x2="30" y2="44" stroke="rgba(255,255,255,.5)" stroke-width="0.8"/>
+        <line x1="94" y1="100" x2="70" y2="44" stroke="rgba(255,255,255,.5)" stroke-width="0.8"/>
+        <line x1="30" y1="44" x2="70" y2="44" stroke="rgba(255,255,255,.6)" stroke-width="0.8"/>
+        <line x1="38" y1="66" x2="62" y2="66" stroke="rgba(255,255,255,.4)" stroke-width="0.7"/>
+        <line x1="30" y1="44" x2="38" y2="66" stroke="rgba(255,255,255,.4)" stroke-width="0.7"/>
+        <line x1="70" y1="44" x2="62" y2="66" stroke="rgba(255,255,255,.4)" stroke-width="0.7"/>
+      </svg>
+      <div class="gframe"></div>
+      <div class="bshadow" id="bshadow"></div>
+      <div class="keeper2" id="keeper2"><span class="kg l"></span><span class="kg r"></span><span class="kh"></span><span class="kbd"></span></div>
+      <svg class="aim" id="aim" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <defs><marker id="ah" markerWidth="5" markerHeight="5" refX="2.5" refY="2.5" orient="auto">
+          <path d="M0,0 L5,2.5 L0,5 Z" fill="#fff"/></marker></defs>
+        <line id="aimLine" x1="50" y1="86" x2="50" y2="86" stroke="#fff" stroke-width="2.2"
+              stroke-linecap="round" marker-end="url(#ah)" opacity="0.95"/>
+      </svg>
+      <div class="ball2" id="ball2">⚽</div>
+      <div class="powerwrap" id="powerwrap"><div class="ptick" style="bottom:30%"></div><div class="ptick" style="bottom:86%"></div><div class="powerbar" id="powerbar"></div></div>
+      <div class="verdict" id="verdict2"><div class="mark"></div><div class="word"></div></div>
+    </div>
+  </div>
+
+  <!-- DEMO panel -->
+  <div class="panel" id="demoPanel">
+    <div class="caption" id="demoCaption"></div>
+    <div class="legend">
+      <span><i class="dot blue"></i>我方 (us)</span>
+      <span><i class="dot red"></i>對方 (them)</span>
+      <span><i class="dot gk"></i>守門員 (GK)</span>
+    </div>
+    <div class="btns">
+      <button class="btn green big" id="playBtn">▶ Pass!</button>
+      <button class="btn" id="nextBtn">下一個 ▶▶</button>
+    </div>
+    <div class="hint">傳球的那一刻 → 紅線後面 = <b style="color:#2fd06a">O</b>　偷跑到線前面 = <b style="color:#ff4b4b">X</b></div>
+  </div>
+
+  <!-- GAME panel -->
+  <div class="panel hide" id="gamePanel">
+    <div class="stars" id="stars"></div>
+    <div class="difficulty">守門員難度
+      <button class="lvl active" data-lv="1">1</button>
+      <button class="lvl" data-lv="2">2</button>
+      <button class="lvl" data-lv="3">3</button>
+    </div>
+    <div class="difficulty">球路
+      <button class="stype" data-loft="drive">⚡直球</button>
+      <button class="stype active" data-loft="normal">⚽普通</button>
+      <button class="stype" data-loft="lob">🌈吊高</button>
+    </div>
+    <div class="caption" id="gameCaption"></div>
+    <div class="btns" id="passControls">
+      <button class="btn green big" id="passBtn">PASS! ⚽</button>
+      <button class="btn grey" id="shuffleBtn">🔀 換位置</button>
+    </div>
+    <div class="hint" id="gameHint"></div>
+  </div>
+
+<script>
+(function(){
+  const $=id=>document.getElementById(id);
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const clampMag=(v,m)=>Math.max(-m,Math.min(m,v));
+  const place=(el,x,y)=>{ el.style.left=x+'%'; el.style.top=y+'%'; };
+  const pitch=$('pitch'), lineEl=$('line'), verdict=$('verdict'), goalStage=$('goalStage'), verdict2=$('verdict2');
+
+  /* sounds */
+  let actx;
+  function tone(f,d,t,w,g){ if(!actx)return; const o=actx.createOscillator(),gn=actx.createGain();
+    o.type=t||'sine'; o.frequency.value=f; o.connect(gn); gn.connect(actx.destination);
+    const s=actx.currentTime+(w||0); gn.gain.setValueAtTime(0.0001,s);
+    gn.gain.exponentialRampToValueAtTime(g||0.2,s+0.02); gn.gain.exponentialRampToValueAtTime(0.0001,s+d);
+    o.start(s); o.stop(s+d+0.02); }
+  const cheer  =()=>[523,659,784,1046].forEach((f,i)=>tone(f,0.35,'triangle',i*0.09,0.25));
+  const whistle=()=>{tone(2100,0.5,'square',0,0.18); tone(2400,0.5,'square',0.02,0.12);};
+  const saveSfx=()=>{tone(180,0.18,'square',0,0.25); tone(120,0.22,'square',0.05,0.2);};
+  const postSfx=()=>{tone(900,0.07,'square',0,0.28); tone(680,0.12,'square',0.06,0.2);};
+  const kick   =()=>tone(160,0.12,'triangle',0,0.3);
+  function initAudio(){ try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended')actx.resume(); }catch(e){} }
+
+  function showVerdict(el,kind,word){ el.className='verdict show '+(kind==='ok'?'ok':'no');
+    el.querySelector('.mark').textContent=kind==='ok'?'O':'X'; el.querySelector('.word').textContent=word; }
+  const clearVerdict=el=>{ el.className='verdict'; };
+  function showLine(x,safe){ lineEl.style.left=x+'%'; lineEl.className='offside-line show'+(safe?' safe':''); }
+  const hideLine=()=>{ lineEl.className='offside-line'; };
+
+  /* ================= DEMO ================= */
+  function mk(cls,label){ const d=document.createElement('div'); d.className='player '+cls; d.textContent=label||''; pitch.appendChild(d); return d; }
+  const ball=document.createElement('div'); ball.className='ball'; ball.textContent='⚽'; pitch.appendChild(ball);
+  const dPasser=mk('blue'),dRecv=mk('blue'),dDef1=mk('red'),dDef2=mk('red'),dGK=mk('gk','GK');
+  const demoPlayers=[dPasser,dRecv,dDef1,dDef2,dGK];
+  const scenes=[
+    { passer:[22,62],recv:[64,38],def1:[55,66],lastDef:70,gk:[94,50],
+      caption:'看好喔！傳球時 <span class="en">🔵</span> 在紅線<b>後面</b> → <b style="color:#2fd06a">OK</b>',ok:true },
+    { passer:[22,40],recv:[80,55],def1:[50,30],lastDef:66,gk:[94,50],
+      caption:'這次 <span class="en">🔵</span> 偷跑到紅線<b>前面</b>了 → <b style="color:#ff4b4b">Offside!</b>',ok:false },
+    { passer:[20,55],recv:[68,38],def1:[52,64],lastDef:68,gk:[94,50],
+      caption:'剛剛好<b>站在線上</b>也算安全 → <b style="color:#2fd06a">OK</b>',ok:true }
+  ];
+  let sIdx=0,demoBusy=false;
+  function loadScene(i){ const s=scenes[i]; clearVerdict(verdict);
+    place(dPasser,...s.passer); place(dRecv,...s.recv); place(dDef1,...s.def1);
+    place(dDef2,s.lastDef,46); place(dGK,...s.gk); place(ball,...s.passer);
+    lineEl.style.left=s.lastDef+'%'; lineEl.className='offside-line';
+    $('demoCaption').innerHTML='情境 '+(i+1)+'：按 <span class="en">Pass!</span> 看結果'; }
+  function playScene(){ if(demoBusy)return; demoBusy=true; initAudio(); const s=scenes[sIdx]; clearVerdict(verdict);
+    showLine(s.lastDef, s.recv[0]<=s.lastDef+1.5); $('demoCaption').innerHTML=s.caption; kick();
+    setTimeout(()=>place(ball,...s.recv),350);
+    setTimeout(()=>{ showVerdict(verdict,s.ok?'ok':'no',s.ok?'GOAL!':'Offside!'); s.ok?cheer():whistle(); demoBusy=false; },1130); }
+  $('playBtn').onclick=playScene;
+  $('nextBtn').onclick=()=>{ sIdx=(sIdx+1)%scenes.length; hideLine(); loadScene(sIdx); };
+
+  /* ================= GAME: PASS ================= */
+  const gPasser=mk('blue'),gRecv=mk('blue receiver'),gDef1=mk('red'),gDef2=mk('red'),gGK=mk('gk','GK');
+  const gamePlayers=[gPasser,gRecv,gDef1,gDef2,gGK];
+  let lastDefX=64,recvX=50,recvY=40,stars=0,phase='pass',busy=false;
+
+  function renderGame(){ place(gPasser,20,60); place(gDef1,lastDefX-12,64); place(gDef2,lastDefX,38);
+    place(gGK,94,50); place(gRecv,recvX,recvY); if(phase==='pass'&&!busy) place(ball,20,60);
+    showLine(lastDefX, recvX<=lastDefX+1.5); }
+  const drawStars=()=>$('stars').textContent='⭐'.repeat(stars)+'☆'.repeat(Math.max(0,5-stars));
+
+  function newPass(){ phase='pass'; busy=false; cancelAnimationFrame(rafId);
+    lastDefX=48+Math.random()*28; recvX=35+Math.random()*45; recvY=28+Math.random()*40; clearVerdict(verdict);
+    pitch.classList.remove('hide'); goalStage.classList.add('hide'); $('passControls').classList.remove('hide'); renderGame();
+    $('gameCaption').innerHTML='拖動 <span class="en">🔵</span> 隊友，再按 <span class="en">PASS!</span>';
+    $('gameHint').innerHTML='線是 <b style="color:#2fd06a">綠色</b>就安全，變 <b style="color:#ff4b4b">紅色</b>就是偷跑啦！'; }
+
+  function passGame(){ if(busy||phase!=='pass')return; busy=true; initAudio();
+    const onside=recvX<=lastDefX+1.5; showLine(lastDefX,onside); kick();
+    setTimeout(()=>place(ball,recvX,recvY),250);
+    setTimeout(()=>{
+      if(onside){ showVerdict(verdict,'ok','Nice!'); cheer();
+        $('gameCaption').innerHTML='<b style="color:#2fd06a">好球！</b> 換你射門 ⚽'; setTimeout(enterShoot,1000);
+      }else{ showVerdict(verdict,'no','Offside!'); whistle();
+        $('gameCaption').innerHTML='<b style="color:#ff4b4b">偷跑了！</b> 退到紅線後面再試試';
+        setTimeout(()=>{ clearVerdict(verdict); newPass(); },1500); }
+    },1030); }
+
+  /* ================= GAME: SHOOT (perspective) ================= */
+  // projection helpers (z:0 near .. 1 goal ; x: lateral -1..1 ; h: height units, 1=crossbar)
+  const GROUND_NEAR=86, GROUND_GOAL=44, FP=0.40, LAT_NEAR=44, LAT_GOAL=20, HU_NEAR=64, HU_GOAL=34, BALL_NEAR=9;
+  const ez=z=>z/(z+(1-z)*FP);
+  const groundY=z=>GROUND_NEAR+(GROUND_GOAL-GROUND_NEAR)*ez(z);
+  const latHalf=z=>LAT_NEAR+(LAT_GOAL-LAT_NEAR)*ez(z);
+  const hUnit=z=>HU_NEAR+(HU_GOAL-HU_NEAR)*ez(z);
+  const scaleZ=z=>1-0.62*ez(z);
+  const scrX=(z,x)=>50+x*latHalf(z);
+  const scrY=(z,h)=>groundY(z)-h*hUnit(z);
+  const BSX=50, BSY=groundY(0);   // ball idle screen pos
+  const KH_Y=33;                  // keeper centre screen-y when standing (%)
+  // drawn geometry (verdict is decided by these exact boxes, so picture == call)
+  const BHALF_W=BALL_NEAR*scaleZ(1)/2;   // ball half-width  (%w) at goal
+  const BHALF_H=BHALF_W*1.5;             // ball half-height (%h)  (stage is 3:2)
+  const KC_W=8, KC_H=9;                  // keeper catch box (%w x %h) — matches drawn figure
+  const POST_L=31.5, POST_R=68.5, GROUND=12; // posts (%) ; max crouch down (crossbar read at runtime)
+
+  let diff=1;
+  const DP={                       // reachX: sideways lunge(%w) ; jump: max upward reach(%h)
+    1:{patAmp:0.26,patSpd:0.45,react:0.42,reachX:6, jump:3, anticip:0},
+    2:{patAmp:0.22,patSpd:1.00,react:0.28,reachX:6.5,jump:5, anticip:0.06},
+    3:{patAmp:0.38,patSpd:1.10,react:0.16,reachX:12,jump:6, anticip:0.22}
+  };
+  document.querySelectorAll('.lvl').forEach(b=>b.onclick=()=>{ diff=+b.dataset.lv;
+    document.querySelectorAll('.lvl').forEach(x=>x.classList.toggle('active',x===b)); });
+
+  // shot type (球路): peak=arc height, kReach=how much the keeper can reach (fast drive => less), dur=flight time
+  let loft='normal';
+  const LP={
+    drive: {peak:0.30, kReach:0.72, dur:520},
+    normal:{peak:0.60, kReach:1.00, dur:690},
+    lob:   {peak:0.98, kReach:1.15, dur:840}
+  };
+  document.querySelectorAll('.stype').forEach(b=>b.onclick=()=>{ loft=b.dataset.loft;
+    document.querySelectorAll('.stype').forEach(x=>x.classList.toggle('active',x===b)); });
+
+  const keeper2=$('keeper2'), ball2=$('ball2'), bshadow=$('bshadow'),
+        aim=$('aim'), aimLine=$('aimLine'), powerwrap=$('powerwrap'), powerbar=$('powerbar');
+  let kx0=0, kdir=1, lastTs=0, rafId=null, shotState='idle', aimX=0, power=0, dragging=false;
+
+  function renderKeeper(cx,cy,tilt){ keeper2.style.left=cx+'%'; keeper2.style.top=cy+'%';
+    keeper2.style.transform='translate(-50%,-50%) rotate('+tilt+'deg)'; }
+  function renderBall(z,x,h){
+    const sc=scaleZ(z), w=BALL_NEAR*sc, sx=scrX(z,x), sy=scrY(z,h);
+    ball2.style.width=w+'%'; ball2.style.left=sx+'%'; ball2.style.top=sy+'%';
+    ball2.style.fontSize=(w/100*goalStage.clientWidth)+'px';
+    const gy=groundY(z), sw=w*0.95;
+    bshadow.style.left=sx+'%'; bshadow.style.top=gy+'%';
+    bshadow.style.width=sw+'%'; bshadow.style.height=(sw*0.42)+'%';
+    bshadow.style.opacity=clamp(0.30-h*0.13,0.05,0.30);
+  }
+
+  function enterShoot(){ phase='shoot'; busy=false; clearVerdict(verdict); clearVerdict(verdict2);
+    pitch.classList.add('hide'); goalStage.classList.remove('hide'); $('passControls').classList.add('hide');
+    kx0=0; kdir=1; aimX=0; power=0; shotState='aim';
+    renderKeeper(scrX(1,0),KH_Y,0); renderBall(0,0,0);
+    aim.classList.remove('show'); powerwrap.classList.remove('show');
+    $('gameCaption').innerHTML='往<b>想射的方向</b>拉 <span class="en">⚽</span>，放開射門！';
+    $('gameHint').innerHTML='箭頭指哪、球就飛哪；拉越長力越大（太短會<b>不夠遠</b>）';
+    cancelAnimationFrame(rafId); lastTs=performance.now(); rafId=requestAnimationFrame(loop); }
+
+  function loop(ts){ const dt=Math.min(0.05,(ts-lastTs)/1000||0); lastTs=ts;
+    if(shotState==='aim'){ const p=DP[diff]; kx0+=kdir*p.patSpd*dt;
+      if(kx0<=-p.patAmp){kx0=-p.patAmp;kdir=1;} else if(kx0>=p.patAmp){kx0=p.patAmp;kdir=-1;}
+      renderKeeper(scrX(1,kx0), KH_Y, kx0*16); }
+    rafId=requestAnimationFrame(loop); }
+
+  function ptPct(e){ const r=goalStage.getBoundingClientRect();
+    return { x:((e.touches?e.touches[0].clientX:e.clientX)-r.left)/r.width*100,
+             y:((e.touches?e.touches[0].clientY:e.clientY)-r.top)/r.height*100 }; }
+  // aim = horizontal position (left/right, smooth & linear) ; power = how far you drag ;
+  // arrow points where it'll go; length grows with power but stays within [ALEN_MIN, ALEN_MAX].
+  const GAIM_Y=27, ALEN_MIN=16, ALEN_MAX=40;
+  function updateAim(p){
+    const r=goalStage.getBoundingClientRect(), W=r.width, H=r.height;
+    power=clamp(Math.hypot((p.x-BSX)/100*W,(p.y-BSY)/100*H)/(0.50*H),0,1);
+    aimX=clamp((p.x-BSX)/20,-1.2,1.2);                 // 20% cursor move = full goal width
+    const tX=scrX(1,aimX);                             // where on the goal the ball will go
+    const alen=ALEN_MIN+(ALEN_MAX-ALEN_MIN)*power;     // bounded length, grows with power
+    let dx=tX-BSX, dy=GAIM_Y-BSY, dl=Math.hypot(dx,dy)||1;
+    aimLine.setAttribute('x2',BSX+dx/dl*alen); aimLine.setAttribute('y2',BSY+dy/dl*alen);
+    aim.classList.add('show');
+    powerbar.style.height=(power*100)+'%'; powerwrap.classList.add('show');
+  }
+  function startAim(e){ if(phase!=='shoot'||shotState!=='aim'||busy)return; dragging=true; ball2.classList.add('dragging'); updateAim(ptPct(e)); e.preventDefault(); }
+  function moveAim(e){ if(!dragging)return; updateAim(ptPct(e)); e.preventDefault(); }
+  function endAim(){ if(!dragging)return; dragging=false; ball2.classList.remove('dragging');
+    aim.classList.remove('show'); powerwrap.classList.remove('show');
+    if(power<0.15) return;   // too weak: try again
+    shoot(); }
+  ball2.addEventListener('mousedown',startAim); ball2.addEventListener('touchstart',startAim,{passive:false});
+  window.addEventListener('mousemove',moveAim); window.addEventListener('touchmove',moveAim,{passive:false});
+  window.addEventListener('mouseup',endAim);   window.addEventListener('touchend',endAim);
+
+  function shoot(){ if(busy)return; busy=true; shotState='flight'; initAudio(); kick();
+    const p=DP[diff], pw=power, ax=aimX, LF=LP[loft];
+    const Rland=0.55+1.5*pw, PEAK=LF.peak;   // power=distance(how far) ; loft=arc height
+    const hAt=z=>{ const u=z/Rland; if(u<=0||u>=1)return 0; return PEAK*4*u*(1-u); };
+    const onGoal=Rland>=1.0, hGoal=onGoal?hAt(1):0;
+
+    // ball box at the goal plane (screen %), keeper home (with prediction)
+    const bX=scrX(1,ax), bY=scrY(1,hGoal);
+    let kHome=kx0; if(p.anticip) kHome+=(ax-kHome)*p.anticip;
+    const homeX=scrX(1,kHome), homeY=KH_Y;
+    // keeper dive end-point: sideways limited by reachX, upward limited by jump (can crouch down)
+    const reachXe=p.reachX*(1-0.08*pw)*LF.kReach;
+    const endX=homeX+clampMag(bX-homeX, reachXe);
+    const endY=homeY+clamp(bY-homeY, -p.jump, GROUND);
+
+    // verdict from the drawn boxes -> what you see is what you get
+    const ovl = Math.abs(bX-endX)<=BHALF_W+KC_W/2 && Math.abs(bY-endY)<=BHALF_H+KC_H/2;
+    const ballL=bX-BHALF_W, ballR=bX+BHALF_W;
+    const barInner=(GROUND_GOAL-HU_GOAL)+6/goalStage.clientHeight*100; // inner crossbar edge (%)
+    let result;
+    if(!onGoal) result='short';
+    else if(bY<barInner) result='over';   // ball CENTRE above the bar = over (clipping the bar still counts in)
+    else if(ballR<POST_L || ballL>POST_R) result='wide';
+    else if(ballL<POST_L || ballR>POST_R) result='post';
+    else result=ovl?'saved':'goal';
+
+    const kEndX = result==='short'?homeX:endX;   // don't dive at a ball that never arrives
+    const kEndY = result==='short'?homeY:endY;
+    const pEnd = !onGoal?Rland : (result==='over'?1.28 : (result==='wide'?1.06:1.0));
+    const dur=LF.dur, t0=performance.now();
+    cancelAnimationFrame(rafId);
+    (function fly(ts){ let f=(ts-t0)/dur; if(f>1)f=1;
+      const z=pEnd*f, h=Math.max(0,hAt(z)), x=ax*z;
+      renderBall(z,x,h);
+      const kf=clamp((z-p.react)/(1-p.react),0,1);
+      const cx=homeX+(kEndX-homeX)*kf, cy=homeY+(kEndY-homeY)*kf;
+      renderKeeper(cx, cy, clamp((cx-homeX)*4.5,-58,58));
+      if(f<1) rafId=requestAnimationFrame(fly); else finishShot(result);
+    })(t0);
+  }
+
+  function finishShot(result){
+    if(result==='goal'){ showVerdict(verdict2,'ok','GOAL!'); cheer(); stars=Math.min(5,stars+1); drawStars();
+      $('gameCaption').innerHTML = stars>=5?'🏆 五球達成！你超強！':'<b style="color:#2fd06a">進球啦！</b> ⭐';
+    }else if(result==='saved'){ showVerdict(verdict2,'no','SAVED!'); saveSfx();
+      $('gameCaption').innerHTML='🧤 被門將撲到了！瞄他撲不到的地方';
+    }else if(result==='over'){ showVerdict(verdict2,'no','OVER!'); whistle();
+      $('gameCaption').innerHTML='太大力了！球<b>飛過頭</b>了';
+    }else if(result==='short'){ showVerdict(verdict2,'no','SHORT!'); whistle();
+      $('gameCaption').innerHTML='太輕了！球<b>沒到球門</b>';
+    }else if(result==='post'){ showVerdict(verdict2,'no','POST!'); postSfx();
+      $('gameCaption').innerHTML='🥅 打到門柱了！差一點點';
+    }else{ showVerdict(verdict2,'no','WIDE!'); whistle();
+      $('gameCaption').innerHTML='歪了！球射偏出去了'; }
+    setTimeout(()=>{ clearVerdict(verdict2); if(stars>=5)stars=0; drawStars(); newPass(); }, 1700);
+  }
+
+  $('passBtn').onclick=passGame;
+  $('shuffleBtn').onclick=()=>{ if(!busy&&phase==='pass') newPass(); };
+
+  /* receiver dragging (pass phase) */
+  let rDrag=false;
+  const rPt=e=>{ const r=pitch.getBoundingClientRect();
+    return { x:clamp(((e.touches?e.touches[0].clientX:e.clientX)-r.left)/r.width*100,6,92),
+             y:clamp(((e.touches?e.touches[0].clientY:e.clientY)-r.top)/r.height*100,10,90) }; };
+  const rStart=e=>{ if(busy||phase!=='pass')return; rDrag=true; gRecv.classList.add('dragging'); const p=rPt(e); recvX=p.x; recvY=p.y; renderGame(); e.preventDefault(); };
+  gRecv.addEventListener('mousedown',rStart); gRecv.addEventListener('touchstart',rStart,{passive:false});
+  window.addEventListener('mousemove',e=>{ if(!rDrag)return; const p=rPt(e); recvX=p.x; recvY=p.y; renderGame(); });
+  window.addEventListener('touchmove',e=>{ if(!rDrag)return; const p=rPt(e); recvX=p.x; recvY=p.y; renderGame(); e.preventDefault(); },{passive:false});
+  window.addEventListener('mouseup',()=>{ rDrag=false; gRecv.classList.remove('dragging'); });
+  window.addEventListener('touchend',()=>{ rDrag=false; gRecv.classList.remove('dragging'); });
+
+  /* ================= MODE SWITCH ================= */
+  const setVis=(list,on)=>list.forEach(p=>p.style.display=on?'flex':'none');
+  const tabDemo=$('tabDemo'), tabGame=$('tabGame');
+  function toDemo(){ tabDemo.classList.add('active'); tabGame.classList.remove('active');
+    $('demoPanel').classList.remove('hide'); $('gamePanel').classList.add('hide');
+    setVis(gamePlayers,false); setVis(demoPlayers,true);
+    pitch.classList.remove('hide'); goalStage.classList.add('hide'); cancelAnimationFrame(rafId);
+    hideLine(); sIdx=0; loadScene(0); }
+  function toGame(){ tabGame.classList.add('active'); tabDemo.classList.remove('active');
+    $('gamePanel').classList.remove('hide'); $('demoPanel').classList.add('hide');
+    setVis(demoPlayers,false); setVis(gamePlayers,true); stars=0; drawStars(); newPass(); }
+  tabDemo.onclick=toDemo; tabGame.onclick=toGame;
+
+  setVis(gamePlayers,false); toDemo();
+
+  /* ================= 注音 auto-annotation ================= */
+  const ZY={
+    '越':'ㄩㄝˋ','位':'ㄨㄟˋ','看':'ㄎㄢˋ','動':'ㄉㄨㄥˋ','畫':'ㄏㄨㄚˋ','玩':'ㄨㄢˊ','遊':'ㄧㄡˊ','戲':'ㄒㄧˋ',
+    '我':'ㄨㄛˇ','方':'ㄈㄤ','對':'ㄉㄨㄟˋ','守':'ㄕㄡˇ','門':'ㄇㄣˊ','員':'ㄩㄢˊ','難':'ㄋㄢˊ','度':'ㄉㄨˋ',
+    '球':'ㄑㄧㄡˊ','路':'ㄌㄨˋ','直':'ㄓˊ','普':'ㄆㄨˇ','通':'ㄊㄨㄥ','吊':'ㄉㄧㄠˋ','高':'ㄍㄠ','置':'ㄓˋ',
+    '下':'ㄒㄧㄚˋ','一':'ㄧ','個':'ㄍㄜˋ','換':'ㄏㄨㄢˋ','傳':'ㄔㄨㄢˊ','的':'˙ㄉㄜ','那':'ㄋㄚˋ','刻':'ㄎㄜˋ',
+    '紅':'ㄏㄨㄥˊ','線':'ㄒㄧㄢˋ','後':'ㄏㄡˋ','面':'ㄇㄧㄢˋ','偷':'ㄊㄡ','跑':'ㄆㄠˇ','到':'ㄉㄠˋ','前':'ㄑㄧㄢˊ',
+    '拖':'ㄊㄨㄛ','隊':'ㄉㄨㄟˋ','友':'ㄧㄡˇ','再':'ㄗㄞˋ','在':'ㄗㄞˋ','按':'ㄢˋ','好':'ㄏㄠˇ','你':'ㄋㄧˇ','射':'ㄕㄜˋ',
+    '了':'˙ㄌㄜ','退':'ㄊㄨㄟˋ','試':'ㄕˋ','進':'ㄐㄧㄣˋ','啦':'˙ㄌㄚ','五':'ㄨˇ','達':'ㄉㄚˊ','成':'ㄔㄥˊ',
+    '超':'ㄔㄠ','強':'ㄑㄧㄤˊ','是':'ㄕˋ','綠':'ㄌㄩˋ','色':'ㄙㄜˋ','就':'ㄐㄧㄡˋ','安':'ㄢ','全':'ㄑㄩㄢˊ','變':'ㄅㄧㄢˋ',
+    '往':'ㄨㄤˇ','想':'ㄒㄧㄤˇ','向':'ㄒㄧㄤˋ','拉':'ㄌㄚ','放':'ㄈㄤˋ','開':'ㄎㄞ','箭':'ㄐㄧㄢˋ','頭':'ㄊㄡˊ','指':'ㄓˇ','哪':'ㄋㄚˇ','飛':'ㄈㄟ',
+    '長':'ㄔㄤˊ','力':'ㄌㄧˋ','大':'ㄉㄚˋ','太':'ㄊㄞˋ','短':'ㄉㄨㄢˇ','會':'ㄏㄨㄟˋ','不':'ㄅㄨˋ','夠':'ㄍㄡˋ','遠':'ㄩㄢˇ',
+    '情':'ㄑㄧㄥˊ','境':'ㄐㄧㄥˋ','結':'ㄐㄧㄝˊ','果':'ㄍㄨㄛˇ','喔':'ㄛ','時':'ㄕˊ','這':'ㄓㄜˋ','次':'ㄘˋ','剛':'ㄍㄤ','站':'ㄓㄢˋ','上':'ㄕㄤˋ','也':'ㄧㄝˇ','算':'ㄙㄨㄢˋ',
+    '被':'ㄅㄟˋ','將':'ㄐㄧㄤ','撲':'ㄆㄨ','瞄':'ㄇㄧㄠˊ','他':'ㄊㄚ','地':'ㄉㄧˋ','過':'ㄍㄨㄛˋ','輕':'ㄑㄧㄥ','沒':'ㄇㄟˊ','打':'ㄉㄚˇ','柱':'ㄓㄨˋ','差':'ㄔㄚˋ','點':'ㄉㄧㄢˇ','歪':'ㄨㄞ','偏':'ㄆㄧㄢ','出':'ㄔㄨ','去':'ㄑㄩˋ'
+  };
+  const isHan=s=>/[一-鿿]/.test(s);
+  const TONES={'ˊ':1,'ˇ':1,'ˋ':1};
+  function buildZ(zy){                 // split bopomofo symbols from tone, position tone correctly
+    let sym=zy, tone='', pos='';
+    if(zy[0]==='˙'){ tone='˙'; sym=zy.slice(1); pos='t'; }          // 輕聲 -> 上方
+    else if(TONES[zy[zy.length-1]]){ tone=zy[zy.length-1]; sym=zy.slice(0,-1); pos='r'; } // 二三四聲 -> 右下
+    const z=document.createElement('span'); z.className='z';
+    const s=document.createElement('span'); s.className='zs'; s.textContent=sym; z.appendChild(s);
+    if(tone){ const t=document.createElement('span'); t.className='zt zt-'+pos; t.textContent=tone; z.appendChild(t); }
+    return z;
+  }
+  function annotate(root){
+    if(!root||root.nodeType!==1) return;
+    const skip={SCRIPT:1,STYLE:1};
+    const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{ acceptNode(n){
+      const p=n.parentNode; if(!p||skip[p.nodeName]) return 2;
+      if(p.classList&&(p.classList.contains('zyc')||p.classList.contains('zs')||p.classList.contains('zt'))) return 2;
+      return isHan(n.nodeValue)?1:2; } });
+    const todo=[]; while(w.nextNode()) todo.push(w.currentNode);
+    todo.forEach(n=>{
+      const frag=document.createDocumentFragment();
+      for(const ch of n.nodeValue){
+        if(ZY[ch]){
+          const wrap=document.createElement('span'); wrap.className='zy';
+          const c=document.createElement('span'); c.className='zyc'; c.textContent=ch;
+          wrap.appendChild(c); wrap.appendChild(buildZ(ZY[ch])); frag.appendChild(wrap);
+        } else frag.appendChild(document.createTextNode(ch));
+      }
+      n.parentNode.replaceChild(frag,n);
+    });
+  }
+  const obs=new MutationObserver(ms=>{
+    obs.disconnect();
+    const seen=new Set();
+    ms.forEach(m=>{ const el=m.type==='characterData'?m.target.parentNode:m.target;
+      if(el&&el.nodeType===1&&!seen.has(el)){ seen.add(el); annotate(el); } });
+    obs.observe(document.body,{childList:true,subtree:true,characterData:true});
+  });
+  annotate(document.body);
+  obs.observe(document.body,{childList:true,subtree:true,characterData:true});
+})();
+</script>
+</body>
+</html>
