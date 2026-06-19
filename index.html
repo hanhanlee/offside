@@ -134,8 +134,10 @@
   @keyframes fall{0%{transform:translateY(0) rotate(0deg); opacity:1;}
     100%{transform:translateY(115vh) rotate(720deg); opacity:.9;}}
   /* 注音 — 直排在字的右邊,聲調分開定位(課本式) */
-  .zy{display:inline-flex; align-items:center; vertical-align:baseline; line-height:1; margin:0 .18em;}
-  .z{position:relative; display:inline-block; margin-left:2px; padding-right:.42em;}
+  /* inline-block 掛在「字」的基線上,注音整欄改用 absolute → 不撐高行框、不影響基線,
+     避免手機 WebKit 對 inline-flex 基線計算不一致造成同一行的字忽高忽低(版面跑掉) */
+  .zy{position:relative; display:inline-block; vertical-align:baseline; line-height:1; margin:0 .66em 0 .08em;}
+  .z{position:absolute; left:100%; top:50%; transform:translateY(-50%); margin-left:2px; padding-right:.42em;}
   .zs{writing-mode:vertical-lr; text-orientation:upright; -webkit-text-orientation:upright;
     font-size:.44em; line-height:1; font-weight:700; color:inherit; opacity:.85; user-select:none;}
   .zt{position:absolute; font-size:.6em; font-weight:900; color:inherit; opacity:.9; line-height:1; user-select:none;}
